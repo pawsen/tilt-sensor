@@ -1,19 +1,9 @@
 #include <LiquidCrystal_I2C.h>
-#include <NeoSWSerial.h>
 #include <BigCrystal.h>
-
-// soft serial
-#define rxPin 8
-#define txPin 9
 
 const uint8_t bufsize = 33;
 char buffer[bufsize];
 boolean runOnce = false;
-
-/* Only a subset of pins can be used for RX for some arduino boards:
- * (mega, leonardo, micro). Uno can use all pins
- * https://www.arduino.cc/en/Reference/softwareSerial */
-NeoSWSerial mySerial(rxPin, txPin);
 
 // set the LCD address to 0x27 for a 16 chars and 2 line display
 LiquidCrystal_I2C lcd(0x27, 16, 2);
@@ -46,8 +36,6 @@ int recieve_data(Stream &port, char* buffer, int bufsize){
 
 void setup() {
     Serial.begin(9600);
-    mySerial.begin(9600);
-    mySerial.flush();
 
     biglcd.init();
     lcd.backlight();
@@ -57,7 +45,7 @@ void setup() {
     lcd.setCursor(2,1);
     lcd.print("beta Boulders");
 
-    Serial.println("Hello World");
+    Serial.println("ready");
     delay(2000);
 }
 
@@ -79,5 +67,6 @@ void loop() {
     }
     
     // we need a delay to ensure correct recieving SoftwareSerial
+    // I don't know if the delay is need for Serial
     delay(100);
 }

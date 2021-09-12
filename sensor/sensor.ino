@@ -1,17 +1,7 @@
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_ADXL345_U.h>
-#include <NeoSWSerial.h>
 #include "extra.h"
-
-#define rxPin 9
-#define txPin 4
-
-/* Only a subset of pins can be used for RX for some arduino boards:
- * mega, leonardo, micro. Uno can use all pins
- * https://www.arduino.cc/en/Reference/softwareSerial */
-//SoftwareSerial mySerial(rxPin, txPin); // RX, TX
-NeoSWSerial mySerial(rxPin, txPin);
 
 /* Assign a unique ID to this sensor at the same time */
 Adafruit_ADXL345_Unified accel = Adafruit_ADXL345_Unified(12345);
@@ -119,17 +109,11 @@ void print_orientation(sensors_vec_t vec){
 }
 
 void setup(void) {
-//#ifndef ESP8266
-//    while (!Serial); // for Leonardo/Micro/Zero
-//#endif
     Serial.begin(9600);
-    Serial.println("Accelerometer Test"); Serial.println("");
-    mySerial.begin(9600);
-    mySerial.flush();
 
     /* Initialise the sensor */
     if(!accel.begin()) {
-        Serial.println("Ooops, no ADXL345 detected ... Check your wiring!");
+        Serial.println("no ADXL345 detected ... Check your wiring!");
         while(1);
     }
 
@@ -139,13 +123,14 @@ void setup(void) {
     // accel.setRange(ADXL345_RANGE_4_G);
     accel.setRange(ADXL345_RANGE_2_G);
 
+#ifdef __DEBUG__
     /* Display some basic information on this sensor */
     displaySensorDetails(&accel);
 
     /* Display additional settings (outside the scope of sensor_t) */
     displayDataRate(&accel);
     displayRange(&accel);
-    Serial.println("");
+#endif
 }
 
 void loop(void) {
@@ -159,11 +144,11 @@ void loop(void) {
     get_avg_acceleration(&event, &acc, 5);
     orientation(acc, &ori);
 
+#ifdef __DEBUG__
     print_acceleration(acc);
     print_orientation(ori);
+#endif
 
     // remember to send '\n' or parsing will pail on the other arduino
-    mySerial.print((int)ori.roll);
-    mySerial.print("\n");
     Serial.println((int)ori.roll);
 }

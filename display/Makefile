@@ -1,12 +1,13 @@
 # makefiles example
 # https://github.com/ladislas/Bare-Arduino-Project/blob/master/Makefile-Linux.mk
-# make help
 
+# make help
 # make monitor
 # make show_boards
 # make show_submenu
 
 TARGET=uno
+TARGET=micro
 ifeq ($(TARGET), uno)
 	MONITOR_PORT = /dev/ttyACM0
 	BOARD_TAG = uno
@@ -25,7 +26,6 @@ mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
 current_dir := $(patsubst %/,%,$(dir $(mkfile_path) ))
 USER_LIB_PATH = $(abspath $(current_dir)/../lib)
 ARDUINO_LIBS := Wire SPI SoftwareSerial NeoSWSerial BigCrystal LiquidCrystal
-# ARDUINO_LIBS += New-LiquidCrystal  #LiquidCrystal_I2C 
 ARDUINO_LIBS += LiquidCrystal_I2C 
 
 # define USE_I2C for #ifdef in BigCrystal.h
