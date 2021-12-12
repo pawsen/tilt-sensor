@@ -95,15 +95,17 @@ void orientation(sensors_vec_t vec, sensors_vec_t *val){
     // θ, theta: rotation of x-axis
     // ψ, psi: y-axis
     // φ, phi: z-axis
-    val->roll = (int) (180/M_PI * ( M_PI/2 - atan2(vec.x, vec.y)));
+    // val->roll = (int) (180/M_PI * ( M_PI/2 - atan2(vec.x, vec.y)));
     val->pitch = (int) (180/M_PI * ( M_PI/2 - atan2(
             (-vec.x) , sqrt(pow(vec.y,2) + pow(vec.z,2)))));
 
     // Angle from x,y axis to gravity vector. Alternative calculations
     // z-axis seems broken. Dont include
     float r = sqrt(vec.x*vec.x + vec.y*vec.y); // + vec.z*vec.z);
-    int roll   = 180/M_PI * ( M_PI/2 - (acos(vec.y / r)));
-    val->pitch  = (int) (180/M_PI * ( M_PI/2 - (acos(vec.x / r))));
+    val->roll  = (int) (180/M_PI * ( M_PI/2 - (acos(vec.y / r))));
+    val->pitch = (int) (180/M_PI * ( M_PI/2 - (acos(vec.x / r))));
+	// we are only interested in abs angle
+	val->roll  = abs(val->roll);
 }
 
 
@@ -131,13 +133,13 @@ void setup(void) {
     lcd.print("Kilter Board  @");
     // Go to column 3, row 1
     lcd.setCursor(3,1);
-    lcd.print("beta Boulders");
+    lcd.print("Beta Boulders");
 
     /* Initialise the sensor */
     if(!accel.begin()) {
         Serial.println("no ADXL345 detected ... Check your wiring!");
         lcd.setCursor(0,1);
-        lcd.print("Err");
+        lcd.print("E");
         while(1);
     }
 
