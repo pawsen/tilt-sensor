@@ -1,9 +1,14 @@
 #+TITLE: Readme
 
 I2C, kort ledning. Der er måske brug for "load modstand"
+Info om I2C
+https://www.gammon.com.au/forum/?id=10896
 
 LCD API
 https://playground.arduino.cc/Code/LCDAPI/
+https://maxpromer.github.io/LCD-Character-Creator/
+
+https://bitbucket.org/teckel12/arduino-lcd-bitmap/wiki/Home
 
 SoftwareSerial alternative
 https://forum.arduino.cc/t/can-arduino-handle-multiple-serial-spi-i2c-softwareserial-at-one-sketch/298978
