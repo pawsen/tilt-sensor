@@ -13,6 +13,18 @@ https://github.com/adafruit/Adafruit_BusIO.git
 https://github.com/adafruit/Adafruit_ADXL345.git
 )
 
+subtree=false
+while getopts ":s-" opt; do
+	case "$opt" in
+		s)
+			subtree=true
+			;;
+		\?)
+			echo "invalid option: -$OPTARG" >&2
+			exit 1
+			;;
+	esac
+done
 
 for repo in "${repos[@]}"
 do
@@ -26,5 +38,7 @@ do
 	branch=$(git remote show "$reponame" | sed -n '/HEAD branch/s/.*: //p')
 	echo "adding $name:$branch as a subtree"
 	# add with mixed case -- not all lowercase
-	git subtree add --prefix lib/"$name" --squash "$reponame" "$branch"
+	if [ "$subtree" = true ]; then
+		git subtree add --prefix lib/"$name" --squash "$reponame" "$branch"
+	fi
 done
