@@ -1,0 +1,51 @@
+#+TITLE: Readme
+
+I2C, kort ledning. Der er måske brug for "load modstand"
+
+LCD API
+https://playground.arduino.cc/Code/LCDAPI/
+
+SoftwareSerial alternative
+https://forum.arduino.cc/t/can-arduino-handle-multiple-serial-spi-i2c-softwareserial-at-one-sketch/298978
+https://www.arduino.cc/en/Reference/softwareSerial
+https://arduino.stackexchange.com/questions/34126/whats-the-difference-between-all-the-software-serial-libraries-which-one-is-ar
+
+Orignal NeoSWSerial does not compile on Pro Micro
+https://github.com/SlashDevin/NeoSWSerial/issues/3
+That is fixed in this clone
+https://github.com/SRGDamia1/NeoSWSerial
+
+
+Arduino multi-master approach. Requires four wires between the two arduinos, but only two for the common i2c bus.
+https://create.arduino.cc/projecthub/chipmc/arduino-i2c-multi-master-approach-why-and-how-93f638
+
+Use screen
+https://gist.github.com/jctosta/af918e1618682638aa82
+
+monitor:
+         stty -F $(MONITOR_PORT) raw $(MONITOR_BAUDRATE)
+         cat $(MONITOR_PORT)
+
+sudo chmod a+rw /dev/ttyUSB0
+https://www.analog.com/media/en/technical-documentation/data-sheets/ADXL345.pdf
+https://www.analog.com/en/app-notes/an-1057.html
+
+https://wiki.dfrobot.com/How_to_Use_a_Three-Axis_Accelerometer_for_Tilt_Sensing
+https://www.best-microcontroller-projects.com/adxl345.html
+https://github.com/jrowberg/i2cdevlib
+https://learn.adafruit.com/adxl345-digital-accelerometer/programming?view=all
+
+Supported Library Values:
+    Ethernet
+    EEPROM
+    Firmata
+    GSM
+    LiquidCrystal
+    SD
+    Servo
+    SPI
+    SoftwareSerial
+    Stepper
+    TFT
+    WiFi
+    Wire
