@@ -4,13 +4,13 @@
 
 pkgs.mkShell {
   ARDMK_DIR = pkgs.arduino-mk;
-  ARDUINO_DIR = "${pkgs.arduino}/share/arduino";
-  ARDUINO_LIB_PATH = "${pkgs.arduino}/share/arduino/libraries";
+  ARDUINO_DIR = "${pkgs.arduino-core-unwrapped}/share/arduino";
+  ARDUINO_LIB_PATH = "${pkgs.arduino-core-unwrapped}/share/arduino/libraries";
   buildInputs = with pkgs; [
     (python3.withPackages (ps: with ps; [
       pyserial
     ]))
-    arduino
+    arduino-core-unwrapped
     arduino-mk
     screen
   ];
