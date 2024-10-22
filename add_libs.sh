@@ -11,6 +11,7 @@ https://github.com/pawsen/BigCrystal.git
 https://github.com/adafruit/Adafruit_Sensor.git
 https://github.com/adafruit/Adafruit_BusIO.git
 https://github.com/adafruit/Adafruit_ADXL345.git
+https://github.com/denyssene/SimpleKalmanFilter
 )
 
 subtree=false
