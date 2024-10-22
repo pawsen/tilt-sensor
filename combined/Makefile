@@ -26,7 +26,7 @@ USER_LIB_PATH = $(abspath $(current_dir)/../lib)
 
 # Wire: I2C communication. SPI: not used but included by Adafruit_BusIO
 ARDUINO_LIBS := Adafruit_Sensor Adafruit_ADXL345 Adafruit_BusIO Wire SPI
-ARDUINO_LIBS += BigCrystal LiquidCrystal_I2C
+ARDUINO_LIBS += BigCrystal LiquidCrystal_I2C SimpleKalmanFilter
 
 # define USE_I2C for #ifdef in BigCrystal.h
 CPPFLAGS += -DUSE_I2C=1

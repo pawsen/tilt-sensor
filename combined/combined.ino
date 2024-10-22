@@ -2,6 +2,7 @@
 #include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_ADXL345_U.h>
+#include <SimpleKalmanFilter.h>
 // display
 #include <LiquidCrystal_I2C.h>
 #include <BigCrystal.h>
@@ -21,6 +22,18 @@ Adafruit_ADXL345_Unified accel = Adafruit_ADXL345_Unified(12345);
  * rectangular block and put it on all sides on a table. Tip: On the two sides
  * where the acc.meter and cables are in the way, press the block against the
  * bottom of the table. */
+
+/*
+  Simple kalman filter for smoothening measurements
+
+  SimpleKalmanFilter(e_mea, e_est, q);
+  e_mea: Measurement Uncertainty
+  e_est: Estimation Uncertainty
+  q: Process Noise
+*/
+SimpleKalmanFilter kf_x(1, 1, 0.01);
+SimpleKalmanFilter kf_y(1, 1, 0.01);
+SimpleKalmanFilter kf_z(1, 1, 0.01);
 
 // gravity defined in Adafruit_Sensor to be 9.806 m/s^2
 const float g = SENSORS_GRAVITY_EARTH;
@@ -76,6 +89,18 @@ void get_avg_acceleration(sensors_event_t *event, sensors_vec_t *vec, uint8_t n)
         delay(100);
     }
     vec->x = ax/n; vec->y = ay/n; vec->z = az/n;
+}
+
+void get_kf_acceleration(sensors_event_t *event, sensors_vec_t *vec){
+    /* get Kalman filtered accelerations */
+
+    accel.getEvent(event);
+	vec->x = kf_x.updateEstimate(vec->x);
+	vec->y = kf_y.updateEstimate(vec->y);
+	vec->x = kf_z.updateEstimate(vec->z);
+
+	// Don't read too fast
+	delay(100);
 }
 
 void orientation(sensors_vec_t vec, sensors_vec_t *val){
@@ -168,7 +193,9 @@ void loop(void) {
     /* Get a new sensor event */
     //accel.getEvent(&event);
     //acceleration(event, &acc);
-    get_avg_acceleration(&event, &acc, 5);
+    // get_avg_acceleration(&event, &acc, 5);
+	// try using the SimpleKalmamFilter instead of the naive averaging
+    get_kf_acceleration(&event, &acc);
     orientation(acc, &ori);
 
 #ifdef __DEBUG__
