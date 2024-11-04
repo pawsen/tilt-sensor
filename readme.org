@@ -1,8 +1,397 @@
 #+TITLE: Readme
 
-I2C, kort ledning. Der er måske brug for "load modstand"
-Info om I2C
+# Note that #+PROPERTY lines do not automatically take effect. You should either re-open the file or press C-c C-c on the line.
+#+PROPERTY: ATTACH_DIR misc
+#+PROPERTY: ATTACH_DIR_INHERIT t
+
+
+
+Use an arduino for converting the output of an accelerometer to an angle of inclination.
+
+TL;DR
+
+Update [[file:combined/combined.ino][combined.ino]]:
+- Run the accelerometer 2g test [[file:misc/calibrate/calibrate.ino][calibrate.ino]] to get the min/max static accelerations for the three axis and update the values
+- Optionally, set the [[https://lastminuteengineers.com/i2c-lcd-arduino-tutorial/#i2c-address-of-lcd][I2C address of the LCD]]. It is probably =0x27=.
+- Optionally, set the I2C address of the accelerometer. If it is [[*Accelerometer, ADXL345][ADXL345]], the default address is =0x53=
+
+Use the [[file:misc/i2c_scanner/i2c_scanner.ino][ic2_scanner.ino]] to get the addresses. If they are the default values, only the acceleration min/max values have to be updated.
+
+In the =combined= directory run
+#+begin_src sh
+make upload
+make monitor
+#+end_src
+
+* Why use a accelerometer
+
+One common way to determine the tilt of a system is to integrate the output of a gyroscope. But error associated with null bias stability can quickly compound as the integration period is increased, causing an apparent rotation even when the device is stationary.
+
+For systems where the net acceleration is gravity, an accelerometer can be used to measure the static angle of tilt or inclination. The tilt is calculated from the projection of the gravity vector on the axes of the accelerometer.
+
+Because gravity is a dc acceleration, any forces that result in an additional dc acceleration corrupt the output signal and result in an incorrect calculation.
+
+- dc: gravity, constant acceleration (moving car) and centrifugal acceleration
+- ac: vibrations
+
+AC-response accelerometers are commonly designed from piezoelectric materials that produce an electrical output proportional to the acceleration.
+DC accelerometers can also meassure vibrations, but the user has to deal with the zero-offset due to gravity and do the [[*Calibration / 2g turnover test][2g turnover test]]
+
+* Calculate inclination
+From [[https://www.analog.com/en/app-notes/an-1057.html][analog.com using an accelerometer for inclination sensing]] (or [[file:misc/an-1057-accelerometer-for-inclination-sensing.pdf][local copy]]),
+** 2d
+The angle of rotation θ in fig [[fig:2d_rotation]], can be calculated as the ratio of the projected accelerations,
+
+$$ \frac{A_\text{X,out}}{A_\text{Y,out}} = \frac{1g⋅\sin(θ)}{1g⋅\cos(θ)} = \tan(θ) $$
+
+#+NAME: fig:2d_rotation
+#+CAPTION: Rotation for two axis tilt
+[[file:misc/two_axis_tilt.svg]]
+
+*** Sensitivity
+One benefit of using two axis for calculating the rotation is that the sensitivity, the change in output for some change in input, is roughly constant.
+
+For a single axis measurement, the sensitivity decreases as the angle increases.
+#+begin_quote
+You can imagine the sensor as a beam suspended on springs, with the capacitance between the beam and the support base giving the acceleration measurement. When the beam is perpendicular to the acceleration field small tilt changes will have a large effect as gravity acts over a larger area.
+
+As the beam tilts vertically, the sensor becomes less sensitive (interacting with the gravity vector less) until, at full vertical orientation, it can not return a reading since the gravity vector has no effect on the beam.
+#+end_quote
+
+Fig. [[fig:1d_incremental_sensitivity]] shows the minimum necessary resolution when measuring the output acceleration in order to meet the desired inclination resolution for the entire range of an application.
+
+For example, designing for a maximum step size of 1°, a resolution of at least 8 mg/LSB is necessary for a range of ±63°. A single axis measurement is unable to measure to ±90° tilt.
+
+#+NAME: fig:1d_incremental_sensitivity
+#+CAPTION: Incremental Inclination Sensitivity for 1° Step for a single axis.
+
+[[file:misc/1axis_sensitivity.svg]]
+
+For dual axis measurements, with constant sensitivity, fig. [[fig:2d_incremental_sensitivity]] shows the minimum resolution for a desired inclination step size. For 1° resolution, a sensitivity of 17.45mg/LSB is needed.
+
+#+NAME: fig:2d_incremental_sensitivity
+#+CAPTION: Minimum Accelerometer Resolution for a Desired Angle of Inclination Resolution for dual axis.
+[[file:misc/2axis_sensitivity.svg]]
+** 3d
+The classical method of rectangular \( (x, y, z) \) to spherical (ρ, θ, φ) conversion can be used to relate the angle of tilt in the xy-plane, θ, and the angle of inclination from the gravity vector, φ, to the measured acceleration in each axis [[https://en.wikipedia.org/wiki/Spherical_coordinate_system#Cartesian_coordinates][as follows]]
+
+$$ θ = \tan^{-1} \left( \frac{A_{X}}{A_{Y}}\right) $$
+$$ φ = \cos^{-1} \left( \frac{A_Z} {\sqrt{A^{2}_{X} +  A^{2}_{Y} + A^{2}_{Z} }} \right) $$
+
+θ is calculated from the ratio of two orthogonal axes and have roughly constant sensitivity. φ is calculated from a single axis(the denominator can be replaced with a constant, ideally 1g) and have the single axis sensitivity.
+
+Another way to calculate the inclinations are
+
+$$ θ = \tan^{-1} \left( \frac{A_{X}} { \sqrt{A^{2}_{Y} + A^{2}_{Z}} } \right) $$
+$$ ψ = \tan^{-1} \left( \frac{A_{Y}}{ \sqrt{A^{2}_{X} + A^{2}_{Z}} } \right) $$
+$$ φ = \tan^{-1} \left( \frac{ \sqrt{A^{2}_{X} + A^{2}_{Y}} }{A_{Z}} \right) $$
+
+- θ as the angle between the horizon and the x-axis
+- ψ as the angle between the horizon and the y-axis
+- φ as the angle between the gravity vector and the z-axis.
+
+as seen below
+#+CAPTION: Angles in a spherical coordinate system
+[[file:misc/3d_independent_inclination.svg]]
+
+Because the inverse tangent function and a ratio of accelerations is used, the benefits mentioned in the dual-axis example apply, namely that the effective incremental sensitivity is constant and that the angles can be accurately measured for all points around the unit sphere.
+
+** Calibration / 2g turnover test
+The calibrated accelerometer output is
+
+$$ A_\text{out} = A_\text{off} + (Gain * A_\text{actual}) $$
+
+The offset and gain are calculated as
+
+$$ A_\text{off} = 0.5 (A_\text{+1g} + A_\text{-1g}) $$
+$$ Gain = 0.5 \left( \frac{  A_\text{+1g} + A_\text{-1g} }{1g} \right) $$
+
+where $A_\text{+1g}$ and $A_\text{-1g}$ are the measured max- and min gravity along an axis.
+
+Use [[file:misc/calibrate/calibrate.ino][calibrate.ino]] to get the measurements and update the values in [[file:combined/combined.ino][combined.ino]].
+Measure the min and max "static" acceleration by holding the accelerometer on all sides at the top/bottom and edge of a table. Alternatively, tape it to a small wooden block and press against the table.
+
+* Accelerometer, ADXL345
+The [[https://www.analog.com/media/en/technical-documentation/data-sheets/ADXL345.pdf][ADXL345]]([[file:misc/ADXL345.pdf][local copy]]) in a breakout package.
+
+- Current consumption depends on the Output Data Rate(ODR), p. 13 in data sheet. This can be set with ~setRate()~ from the [[https://github.com/jrowberg/i2cdevlib/tree/master/Arduino/ADXL345][library]].
+  Default is =ADXL345_RATE_100= with a consumption of 140μA, the minimun is 23μA for rates of 0.39Hz and below.
+- The sensitivity depends on the resolution(10-13 bit) and range (2g, 4g, 8g, 16g), see p. 3.
+  For full resolution the sensitivity is typical 3.9mg/LSB, with [3.5-4.3]mg/LSB being min and max. From fig [[fig:2d_incremental_sensitivity]] this gives and angle inclination step size of at least 0.25°.
+- The I2C address depends on the =SDO= pin which is pulled down with a 4.7K resistor.
+  Unconnected the address is =0x53=, if connected to *3.3V* the line is pulled high and the address is =0x1D=.
+
+As an example, the following set the resolution to 10bit and the range to 16g, giving a scale factor of [28,6-34.5]mg/LSB. (I do not know why you would limit the resolution to 10bit, unless also setting the range to 2g, or doing a self-test as in [[file:misc/selftest.ino][selftest.ino]])
+#+begin_src c
+#include <ADXL345.h>
+
+// the default i2c address is 0x53. Defined in ADXL345.h
+// ADXL345_ADDRESS_ALT_LOW => 0x53
+// ADXL345_ADDRESS_ALT_HIGH => 0x1D
+ADXL345 accel(ADXL345_ADDRESS_ALT_LOW);
+
+// 0 => 10 bit mode, 1 => resolution increases with the g range set by the range
+// bits to maintain a 4 mg/LSB scale factor.
+accel.setFullResolution(0);
+accel.setRate(ADXL345_RATE_100); // default
+accel.setLowPowerEnabled(0);
+accel.setRange(3); // 0=>2g, 1=>4g. 2=>8g, 3=>16g
+#+end_src
+
+[[https://youtu.be/3KPzLbZTdrA][Here is deep dive into MEMS devices on youtube]].
+
+** connections
+
+| Arduino Uno | ADXL345 |
+|-------------+---------|
+| A4          | SDA     |
+| A5          | SCL     |
+| GND         | GND     |
+| 5V          | Vcc     |
+
+* Monitor the serial port
+** Configure permissions for serial port
+The tty devices are usually readable/writable by a specific group such as =dialout=. Add yourself to that group to gain access to all serial ports
+: sudo gpasswd -a YourUsername dialout
+
+Or do a one-time temporary manual change
+: sudo chmod a+rw /dev/ttyUSB0
+
+*** udev rules on NixOS
+
+Make a udev rule to get a "static" symlink to the device
+
+Start by getting the vendor- and product id of the attached arduino
+#+begin_src sh
+> nix shell nixpkgs#usbutils
+> lsusb
+
+Bus 001 Device 078: ID 2341:0043 Arduino SA Uno R3 (CDC ACM)
+#+end_src
+
+The udev rule
+#+begin_src nix
+services.udev.packages = [
+      (pkgs.writeTextFile {
+        name = "50-arduino.rules";
+        text = ''
+          SUBSYSTEMS=="tty", ATTRS{idVendor}=="2341", ATTRS{idProduct}="0043", MODE="0666", TAG+="uaccess", SYMLINK+="arduino"
+          # or matching most arduinos, incl clones
+          KERNEL=="ttyACM[0-9]*", MODE="0666", TAG+="uaccess", ...
+        '';
+        destination = "/etc/udev/rules.d/50-zsa.rules";
+      })
+    ];
+#+end_src
+
+Make sure the =udev rules= are reloaded
+#+begin_src sh
+udevadm trigger
+udevadm control --reload-rules
+#+end_src
+Alternatively, try to reboot.
+
+The match keywords for
+- =KERNEL= - match against the kernel name for the device
+- =SUBSYSTEM= - match against the subsystem of the device
+
+can be found by
+#+begin_src sh
+udevadm info -q property /dev/ttyACM0
+
+DEVNAME=/dev/ttyACM0
+SUBSYSTEM=tty
+ID_VENDOR_ID=2341
+ID_USB_MODEL_ID=0043
+...
+#+end_src
+~DEVNAME~ is the ~KERNEL~ attribute. This can be seen by
+#+begin_src sh
+udevadm info --attribute-walk /dev/ttyACM0
+
+looking at device '/devices/pci0000:00/0000:00:14.0/usb1/1-1/1-1:1.0/tty/ttyACM0':
+  KERNEL=="ttyACM0"
+  SUBSYSTEM=="tty"
+#+end_src
+
+The ~TAG+="uaccess"~ is from the [[https://wiki.archlinux.org/title/Udev#Allowing_regular_users_to_use_devices][archlinux wiki on udev:]]
+#+begin_quote
+The modern recommended approach for systemd systems is to use a MODE of 660 to
+let the group use the device, and then attach a TAG named uaccess. This special
+tag makes udev apply a dynamic user ACL to the device node, which coordinates
+with systemd-logind(8) to make the device usable to logged-in users.
+
+*Note*: For any rule adding the uaccess tag to be effective, the name of the
+file it is defined in has to lexically precede
+/usr/lib/udev/rules.d/73-seat-late.rules.
+#+end_quote
+** Read from the serial port
+For bidirectional
+: screen /dev/ttyACM0
+[[https://gist.github.com/jctosta/af918e1618682638aa82][Screen cheatsheet]]
+
+Or for only reading, using a makefile (or a script)
+#+begin_src makefile
+monitor:
+         stty -F $(MONITOR_PORT) raw $(MONITOR_BAUDRATE)
+         cat $(MONITOR_PORT)
+#+end_src
+where ~MONITOR_BAUDRATE~ is set in the arduino sketch.
+* I2C between the two boxes
+The arduino, accelerometer and display uses I2C for communication. I2C is not meant for long cables(>2m). For longer distances
+
+- Using a low capacitance cable (twisted-pair/Ethernet);
+- Limiting the bus speed;
+- Having pull-ups that are correctly sized.
+
+For a Cat5 cable wire it as:
+- one pair ground, one pair +5V, and SDA+GND and SCL+GND pairs.
+
 https://www.gammon.com.au/forum/?id=10896
+** Brief intro
+I2C has several speed modes
+- Standard-mode (Sm), up to 100 kilobits per second (kbps).
+- Fast-mode (Fm), up to 400 kbps
+- Fast-mode Plus (Fm+), up to 1 Mbps
+
+Additional there are two modes that requires controller code, active pullups or similar
+- High-speed mode (Hsm), up to 3.4 Mbps
+- Ultra-Fast mode (UFm), read only, up to 5 Mbps
+
+The default for an arduino is =Sm=. To see if targets are able to communicate at higher speed modes, use the [[https://github.com/RobTillaart/Arduino/tree/master/sketches/MultiSpeedI2CScanner][MultiSpeedI2CScanner]].
+For both I2C and SPI(serial peripheral interface), the master determines the bus speed and you can set it to whatever you like(up to the supported mode). Generally, SPI runs faster than I2C but requires more signals and cables.
+I2C is half-duplex communication where only a single controller or a target device is sending data on the bus at a time. In comparison SPI is a full-duplex, i.e. data can be sent and received at the same time.
+
+
+** Registers
+
+
+The I2C/2-wire Serial interface(TWI) hardware in ATmega MCU uses registers TWBR, TWCR, TWSR, TWDR, TWAR, and TWAMR to configure the hardware and to transmit and receive data. See [[https://www.arnabkumardas.com/arduino-tutorial/i2c-register-description/][this link]] for a description of the registers.
+
+#+CAPTION: AVR I2C Register Configuration
+[[file:misc/atmega16_32_twi_module.webp]]
+
+*** change timing / speed
+
+The I2C speed is set by
+#+begin_src cpp
+// initialize Wire or some library using Wire for communication
+Wire.begin();
+// or
+lcd.init();  // there is a Wire.begin() in the lcd.init() function
+
+// frequency in Hz
+Wire.setClock(400000L);
+#+end_src
+
+
+[[https://github.com/arduino/ArduinoCore-avr/blob/master/libraries/Wire/src/Wire.cpp#L85-L88][Wire.setClock()]] calls [[https://github.com/arduino/ArduinoCore-avr/blob/master/libraries/Wire/src/utility/twi.c#L139-L147][twi_setFrequency()]] where the =TWBR= (Two Wire Bit Rate register of the MCU) variable is set. The relationship between =TWBR= and frequency is
+
+: slc_freq = cpu_clock / (16 + (2 * TWBR * prescaler))
+the =cpu_clock= is 16MHz for the ATmega328 used by Arduino
+
+| TWBR | prescaler | Frequency                                |
+|------+-----------+------------------------------------------|
+|   12 |         1 | 400   kHz  (maximum supported frequency) |
+|   32 |         1 | 200   kHz                                |
+|   72 |         1 | 100   kHz  (default)                     |
+|  152 |         1 | 50   kHz                                 |
+|   78 |         4 | 25   kHz                                 |
+|  158 |         4 | 12.5 kHz                                 |
+
+~Wire.setClock~ should be used as it is portable, however it does not change the prescaler and the argument to ~Wire.setClock~ is ~uint32_t~ (unsigned int). Thus the frequency cannot be changed arbitrarily. As seen from the link to [[https://github.com/arduino/ArduinoCore-avr/blob/master/libraries/Wire/src/utility/twi.c#L139-L147][twi_setFrequency()]] there are no limit checks, it only works for speeds between 50-400kHz.
+
+For speeds below 50kHz, =TWBR= and optionally the prescaler, has to be set manually. The prescaler is set by the =TWPS0= and =TWPS1= bits, the relationship is
+
+: prescaler = 4^TWPS
+| TWPS1 | TWPS0 | TWPS | prescaler |
+|-------+-------+------+-----------|
+|     0 |     0 |    0 |         1 |
+|     0 |     1 |    1 |         4 |
+|     1 |     0 |    2 |        16 |
+|     1 |     1 |    3 |        64 |
+
+To set the prescaler to 4 you need to set the bit TWPS0 in TWSR, so for example to have a clock of 12.5 kHz:
+#+begin_src c
+Wire.begin ();
+TWBR = 158;
+TWSR |= bit (TWPS0);
+#+end_src
+
+*** Broadcast
+From [[https://www.ti.com/lit/an/sbaa565/sbaa565.pdf#%5B%7B%22num%22%3A41%2C%22gen%22%3A0%7D%2C%7B%22name%22%3A%22XYZ%22%7D%2Cnull%2C442.775%2Cnull%5D][TI: A Basic Guide to I2c, reserved addreses]] broadcast is done by writing to address 0.
+
+For it to work, the last bit of the TWAR (TWI (Slave) Address Register) has to be set. The 7 most significant bits of TWAR is the address, the last is TWGCE (TWI General Call Recognition Enable Bit). See [[http://www.gammon.com.au/i2c#reply1][example]]
+
+#+CAPTION: Enable slave to recieve broadcast
+#+begin_src c
+#include <Wire.h>
+const byte MY_ADDRESS = 42;   // me
+void setup ()
+{
+    Wire.begin (MY_ADDRESS);  // initialize hardware registers etc.
+    TWAR = (MY_ADDRESS << 1) | 1;  // enable broadcasts to be received
+
+    Wire.onReceive(receiveEvent);  // set up receive handler
+    pinMode(LED, OUTPUT);          // for debugging, allow LED to be flashed
+}
+#+end_src
+
+** Resistor sizing
+tl;dr
+Use 4.7㏀ between =SDA=, =SCL= and =Vcc=. You can leave the internal pullups enabled. The pullups works in parallel, thus the effect of the internal pullups is to reduce the 4.7㏀ slightly, which should not be a problem.
+
+
+I2C is a open drain bus and requires pullups between =SDA=, =SCL= and =Vcc=.
+
+#+CAPTION: Open-Drain Connection Pulls Line Low When NMOS is Turned On
+[[file:misc/open_drain_pull_low.png]]
+
+#+CAPTION: Pullup Resistor Pulls Line High When NMOS is Turned Off
+[[file:misc/open_drain_pullup_high.png]]
+
+
+The normal pullup resistor recommendation is 1 kΩ to 10 kΩ. With higher resistances, the I2C communication is slower. With lower resistances, the I2C communication requires more power. Based on the several different parameters, a minimum and maximum resistance can be calculated for the I2C bus speed.
+
+The maximum "low level output" voltage is V_OL = 0.4V. For a 5V system this gives a minimum resistance of
+$$ R_\text{min} = \frac{V_\text{CC} - V_\text{OL}} {I_\text{OL}} = \frac{5V - 0.4V}{3mA} ≅ 1.5 ㏀ $$
+
+The maximum resistance is based on the requirement for the rise time and bus capacitance given in the table below
+
+#+CAPTION: Parametric Characteristics From I2C Protocol
+| Parameter                                 | Standard-mode | Fast-mode | Fast-mode Plus | Unit |
+|-------------------------------------------+---------------+-----------+----------------+------|
+| fSCL, SCLK clock frequency                |      0 to 100 |  0 to 400 |      0 to 1000 | kHz  |
+| tr, Rise time of both SDA and SCL signals |          1000 |       300 |            120 | ns   |
+| Cb, Capacitive load for each bus line     |           400 |       400 |            550 | pF   |
+
+The [[https://www.ti.com/lit/an/sbaa565/sbaa565.pdf#%5B%7B%22num%22%3A107%2C%22gen%22%3A0%7D%2C%7B%22name%22%3A%22XYZ%22%7D%2Cnull%2C144.845%2Cnull%5D][formula]] (the 0.8473 constant is because the signal does not have to go from 0V-Vcc, but instead 0.3Vcc-0.7Vcc which are the Low and high level input voltage):
+$$ R_\text{max} = t_\text{rise} / (0.8473 Cb) $$
+
+For Standard mode, with tr=1ns and maximum allowed capacitance of Cb=400pF, the maximum resistance is 750Ω which is lower than the minimum resistance of 1.5㏀ for a 5V system.
+For this reason the maximum recommended bus capacitance is dropped down to about 200pF with a 5 volt system
+
+
+
+Fig. [[fig:i2c_100kHz_pullups]] shows measurements of T_rise for different pullup resistors. As a general recommendation 4.7㏀ works well.
+
+#+NAME: fig:i2c_100kHz_pullups
+#+CAPTION: T_rise and the size of pullup resistor for 100kHz clock.
+#+CAPTION: 68k, 47k, 33k, 10k, 6.8k,4.7k, 3.3k, 2.2k and 1.5k resistor size
+[[attachment:Progression100kHz.jpg]]
+
+See [[https://web.archive.org/web/20150923044740/http://dsscircuits.com:80/articles/effects-of-varying-i2c-pull-up-resistors][link]] and [[http://www.gammon.com.au/i2c#reply5][link2]] for additional measurements.
+
+Power Rating: The power consumed in a resistor is \( V⋅I = V^2R \). For a 5.5V drop and 1k that's less than 31mW. So there should not be an issue for discrete components.
+
+As a final note, CAT5 can't have a higher capacitance than 52pf/m, or it isn't CAT5.
+* Assembling
+
+* Other resources
+[[https://www.best-microcontroller-projects.com/magnetometer-tilt-compensation.html][Using an accelerometer as tilt-compensation for a compass/magnetometer]]
+
+** libraries
+https://github.com/jrowberg/i2cdevlib
 
 LCD API
 https://playground.arduino.cc/Code/LCDAPI/
@@ -20,25 +409,6 @@ https://github.com/SlashDevin/NeoSWSerial/issues/3
 That is fixed in this clone
 https://github.com/SRGDamia1/NeoSWSerial
 
-
-Arduino multi-master approach. Requires four wires between the two arduinos, but only two for the common i2c bus.
-https://create.arduino.cc/projecthub/chipmc/arduino-i2c-multi-master-approach-why-and-how-93f638
-
-Use screen
-https://gist.github.com/jctosta/af918e1618682638aa82
-
-monitor:
-         stty -F $(MONITOR_PORT) raw $(MONITOR_BAUDRATE)
-         cat $(MONITOR_PORT)
-
-sudo chmod a+rw /dev/ttyUSB0
-https://www.analog.com/media/en/technical-documentation/data-sheets/ADXL345.pdf
-https://www.analog.com/en/app-notes/an-1057.html
-
-https://wiki.dfrobot.com/How_to_Use_a_Three-Axis_Accelerometer_for_Tilt_Sensing
-https://www.best-microcontroller-projects.com/adxl345.html
-https://github.com/jrowberg/i2cdevlib
-https://learn.adafruit.com/adxl345-digital-accelerometer/programming?view=all
 
 Supported Library Values:
     Ethernet
