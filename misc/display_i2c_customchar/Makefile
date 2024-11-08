@@ -2,31 +2,31 @@
 # https://github.com/ladislas/Bare-Arduino-Project/blob/master/Makefile-Linux.mk
 
 # make help
+# make upload
 # make monitor
-# make show_boards
+# make show_board
 # make show_submenu
 
 TARGET=uno
-TARGET=micro
+#TARGET=micro
 ifeq ($(TARGET), uno)
-	MONITOR_PORT = /dev/ttyACM0
-	BOARD_TAG = uno
+    MONITOR_PORT = /dev/ttyACM0
+    BOARD_TAG = uno
 else
-	MONITOR_PORT = /dev/ttyUSB0
-	BOARD_TAG = pro
-	BOARD_SUB = 16MHzatmega328
+    MONITOR_PORT = /dev/ttyUSB0
+    BOARD_TAG = pro
+    BOARD_SUB = 16MHzatmega328
 endif
 
-# BOARD_TAG = leonardo
-# BOARD_TAG = diecimila
-# BOARD_SUB=atmega328
+MONITOR_BAUDRATE  = 9600
 
-# MONITOR_BAUDRATE  = 9600
 mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
 current_dir := $(patsubst %/,%,$(dir $(mkfile_path) ))
 USER_LIB_PATH = $(abspath $(current_dir)/../lib)
-ARDUINO_LIBS := Wire SPI SoftwareSerial NeoSWSerial BigCrystal LiquidCrystal
-ARDUINO_LIBS += LiquidCrystal_I2C 
+
+# Wire: I2C communication. SPI: not used but included by Adafruit_BusIO
+ARDUINO_LIBS := Adafruit_Sensor Adafruit_ADXL345 Adafruit_BusIO Wire SPI
+ARDUINO_LIBS += BigCrystal LiquidCrystal_I2C SimpleKalmanFilter
 
 # define USE_I2C for #ifdef in BigCrystal.h
 CPPFLAGS += -DUSE_I2C=1

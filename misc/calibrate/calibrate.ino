@@ -2,9 +2,12 @@
 #include <Adafruit_Sensor.h>
 #include <Adafruit_ADXL345_U.h>
 
-/* Assign a unique ID to this sensor at the same time */
+// Assign a unique ID to this sensor at the same time
 Adafruit_ADXL345_Unified accel = Adafruit_ADXL345_Unified(12345);
 
+// I2C address. Default for AXDL345 is 0x53. Use ic2_scanner.ino to see the
+// address, if the accelerometer doesnt register.
+const uint8_t I2C_address = 0x53;
 
 float AccelMinX = 0;
 float AccelMaxX = 0;
@@ -21,7 +24,7 @@ void setup(void)
   Serial.println("");
   
   /* Initialise the sensor */
-  if(!accel.begin())
+  if(!accel.begin(I2C_address))
   {
     /* There was a problem detecting the ADXL345 ... check your connections */
     Serial.println("Ooops, no ADXL345 detected ... Check your wiring!");

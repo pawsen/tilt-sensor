@@ -8,7 +8,7 @@
 # make show_submenu
 
 TARGET=uno
-TARGET=micro
+#TARGET=micro
 ifeq ($(TARGET), uno)
     MONITOR_PORT = /dev/ttyACM0
     BOARD_TAG = uno
@@ -22,14 +22,9 @@ MONITOR_BAUDRATE  = 9600
 
 mkfile_path := $(abspath $(lastword $(MAKEFILE_LIST)))
 current_dir := $(patsubst %/,%,$(dir $(mkfile_path) ))
-USER_LIB_PATH = $(abspath $(current_dir)/../lib)
-ARDUINO_LIBS := Adafruit_Sensor Adafruit_ADXL345 Adafruit_BusIO Wire SPI NeoSWSerial
-ARDUINO_LIBS += 
+USER_LIB_PATH = $(abspath $(current_dir)/../../lib)
+
+# Wire: I2C communication. SPI: not used but included by Adafruit_BusIO
+ARDUINO_LIBS := Wire I2Cdev ADXL345
 
 include $(ARDMK_DIR)/Arduino.mk
-
-# !!! Important. You have to use 'make ispload' when using an ISP.
-
-# enable flymake-mode in ino-files
-check-syntax:
-	$(CXX) -c -include Arduino.h   -x c++ $(CXXFLAGS)   $(CPPFLAGS)  -fsyntax-only $(CHK_SOURCES)

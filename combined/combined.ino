@@ -23,27 +23,15 @@ Adafruit_ADXL345_Unified accel = Adafruit_ADXL345_Unified(12345);
  * where the acc.meter and cables are in the way, press the block against the
  * bottom of the table. */
 
-/*
-  Simple kalman filter for smoothening measurements
-
-  SimpleKalmanFilter(e_mea, e_est, q);
-  e_mea: Measurement Uncertainty
-  e_est: Estimation Uncertainty
-  q: Process Noise
-*/
-SimpleKalmanFilter kf_x(1, 1, 0.01);
-SimpleKalmanFilter kf_y(1, 1, 0.01);
-SimpleKalmanFilter kf_z(1, 1, 0.01);
-
 // gravity defined in Adafruit_Sensor to be 9.806 m/s^2
 const float g = SENSORS_GRAVITY_EARTH;
 // measured "static" accelerations
-const float minX = -13.81;
-const float maxX = 10.67;
-const float minY = -10.87;
-const float maxY = 12.87;
-const float minZ = 0;
-const float maxZ = 20.04;
+const float minX = -10.90;
+const float maxX = 10.28;
+const float minY = -10.47;
+const float maxY = 10.16;
+const float minZ = -8.36;
+const float maxZ = 11.41;
 
 float offset(float min_acc, float max_acc){
     return 0.5 * (min_acc + max_acc);
@@ -52,14 +40,13 @@ float gain(float min_acc, float max_acc){
     return 0.5 * ((max_acc - min_acc) / g);
 }
 
-// z-axis seems to be broken
 const float offsetX = offset(minX, maxX);
 const float offsetY = offset(minY, maxY);
-const float offsetZ = 0; // offset(minZ, maxZ);
+const float offsetZ = offset(minZ, maxZ);
 
 const float gainX = gain(minX, maxX);
 const float gainY = gain(minY, maxY);
-const float gainZ = 1; // gain(minZ, maxZ);
+const float gainZ = gain(minZ, maxZ);
 
 // buffer for displaying roll
 const uint8_t bufsize = 33;
@@ -91,18 +78,6 @@ void get_avg_acceleration(sensors_event_t *event, sensors_vec_t *vec, uint8_t n)
     vec->x = ax/n; vec->y = ay/n; vec->z = az/n;
 }
 
-void get_kf_acceleration(sensors_event_t *event, sensors_vec_t *vec){
-    /* get Kalman filtered accelerations */
-
-    accel.getEvent(event);
-	vec->x = kf_x.updateEstimate(vec->x);
-	vec->y = kf_y.updateEstimate(vec->y);
-	vec->x = kf_z.updateEstimate(vec->z);
-
-	// Don't read too fast
-	delay(100);
-}
-
 void orientation(sensors_vec_t vec, sensors_vec_t *val){
     /* roll;
        Rotation around the longitudinal axis (the plane body, 'X axis').
@@ -116,24 +91,26 @@ void orientation(sensors_vec_t vec, sensors_vec_t *val){
       Angle between the longitudinal axis (the plane body) and magnetic north,
       measured clockwise when viewing from the top of the device. 0-359
       degrees */
-
     // θ, theta: rotation of x-axis
     // ψ, psi: y-axis
     // φ, phi: z-axis
-    // val->roll = (int) (180/M_PI * ( M_PI/2 - atan2(vec.x, vec.y)));
-    val->pitch = (int) (180/M_PI * ( M_PI/2 - atan2(
-            (-vec.x) , sqrt(pow(vec.y,2) + pow(vec.z,2)))));
 
-    // Angle from x,y axis to gravity vector. Alternative calculations
-    // z-axis seems broken. Dont include
-    float r = sqrt(vec.x*vec.x + vec.y*vec.y); // + vec.z*vec.z);
-    val->roll  = (int) (180/M_PI * ( M_PI/2 - (acos(vec.y / r))));
-    val->pitch = (int) (180/M_PI * ( M_PI/2 - (acos(vec.x / r))));
-	// we are only interested in abs angle
-	val->roll  = abs(val->roll);
+	// Because the inverse tangent function and a ratio of accelerations is
+	// used, the benefits mentioned in the dual-axis example apply, namely that
+	// the effective incremental sensitivity is constant and that the angles can
+	// be accurately measured for all points around the unit sphere. */
+    // val->pitch = (int) (180/M_PI) *
+	// 	atan2(vec.x, sqrt(vec.y*vec.y + vec.z*vec.z)) ;
+    // val->roll = (int) (180/M_PI) *
+	// 	atan2(vec.y, sqrt(vec.x*vec.x + vec.z*vec.z));
+	// // we are only interested in abs angle
+	// val->pitch  = abs(val->pitch);
+	// val->roll  = abs(val->roll);
+
+	///  XXX For this project I only care about rotation of a single plane and I
+	///  only care about tilt from horisontal
+	val->roll = abs((int)(180 / M_PI) * (M_PI/2 - atan(-vec.x / vec.y)));
 }
-
-
 
 void print_acceleration(sensors_vec_t vec){
     /* Display the results (acceleration is measured in m/s^2) */
@@ -164,7 +141,7 @@ void setup(void) {
     if(!accel.begin()) {
         Serial.println("no ADXL345 detected ... Check your wiring!");
         lcd.setCursor(0,1);
-        lcd.print("E");
+        lcd.print("Error");
         while(1);
     }
 
@@ -173,7 +150,7 @@ void setup(void) {
     // accel.setRange(ADXL345_RANGE_8_G);
     // accel.setRange(ADXL345_RANGE_4_G);
     accel.setRange(ADXL345_RANGE_2_G);
-#ifdef __DEBUG__
+#ifdef DEBUG
     /* Display some basic information on this sensor */
     displaySensorDetails(&accel);
     /* Display additional settings (outside the scope of sensor_t) */
@@ -193,18 +170,16 @@ void loop(void) {
     /* Get a new sensor event */
     //accel.getEvent(&event);
     //acceleration(event, &acc);
-    // get_avg_acceleration(&event, &acc, 5);
-	// try using the SimpleKalmamFilter instead of the naive averaging
-    get_kf_acceleration(&event, &acc);
+    get_avg_acceleration(&event, &acc, 5);
     orientation(acc, &ori);
 
-#ifdef __DEBUG__
+#ifdef DEBUG
     print_acceleration(acc);
     print_orientation(ori);
 #endif
 
-    // remember to send '\n' or parsing will pail on the other arduino
-    int roll = (int)ori.roll;
+    int tilt = (int)ori.roll;
+    // int tilt = (int)ori.pitch;
     if (!runOnce) {
         runOnce = true;
         lcd.clear();
@@ -212,10 +187,10 @@ void loop(void) {
     char pbuf[bufsize];
     char bbuf[bufsize];
     // right justify to center number
-    sprintf(pbuf, "%2d", roll);
+    sprintf(pbuf, "%2d", tilt);
     // pad with spaces (left justify), to clear left-over text
     sprintf(bbuf, "%-6s", pbuf);
     biglcd.printBig(bbuf, 4, 0);
+    // remember to send '\n' or parsing will fail on the other arduino
     Serial.println(bbuf);
-
 }

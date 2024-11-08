@@ -1,4 +1,5 @@
 // By John Main © best-microcontroller-projects.com
+// https://www.best-microcontroller-projects.com/adxl345.html
 // ADXL345 Self Test, show g and roll pitch values
 #include <math.h>
 #include <Wire.h>
@@ -13,7 +14,7 @@ static byte showAngles = 0; // Display operation
 
 void setup() {
     Wire.begin();
-    Serial.begin(115200);
+    Serial.begin(9600);
 
     // initialize device
     Serial.println( F("Starting I2C devices...") );
