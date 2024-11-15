@@ -12,6 +12,8 @@ pkgs.mkShell {
     ]))
     arduino-core-unwrapped
     arduino-mk
+		# use tio instead of screen
+		tio
     screen
   ];
 }

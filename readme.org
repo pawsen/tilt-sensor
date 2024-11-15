@@ -8,20 +8,45 @@
 
 Use an arduino for converting the output of an accelerometer to an angle of inclination.
 
-TL;DR
+* TL;DR
 
-Update [[file:combined/combined.ino][combined.ino]]:
-- Run the accelerometer 2g test [[file:misc/calibrate/calibrate.ino][calibrate.ino]] to get the min/max static accelerations for the three axis and update the values
-- Optionally, set the [[https://lastminuteengineers.com/i2c-lcd-arduino-tutorial/#i2c-address-of-lcd][I2C address of the LCD]]. It is probably =0x27=.
-- Optionally, set the I2C address of the accelerometer. If it is [[*Accelerometer, ADXL345][ADXL345]], the default address is =0x53=
+- Add 4.7㏀ as pullups between =SDA=, =SCL= and =Vcc= ::
+  4-wire cables to connect the Arduino, LCD and accelerometer, =Vcc=, =gnd=, =SDA= and =SCL=.
+  Use a small piece of stripboard to connect the cables:
+  4 strips with minimum 5 rows. The rows are: pullups, accelerometer, arduino, power and connecting cable.
+  On the Arduino:
+  - =A4 - SDA=
+  - =A5 - SCL=
+- Update [[file:combined/combined.ino][combined.ino]] ::
+  Run the accelerometer 2g test [[file:misc/calibrate/calibrate.ino][calibrate.ino]] to get the min/max static accelerations for the three axis and update the values
+  - Optionally, use [[file:misc/i2c_scanner/i2c_scanner.ino][ic2_scanner.ino]] to get the addresses. If they are the default values, only the acceleration min/max values have to be updated.
+  - Optionally, set the [[https://lastminuteengineers.com/i2c-lcd-arduino-tutorial/#i2c-address-of-lcd][I2C address of the LCD]]. The default is =0x27=.
+  - Optionally, set the I2C address of the accelerometer. If it is [[*Accelerometer, ADXL345][ADXL345]], the default is =0x53=
+- Optionally, print the cases in the =stl= directory
 
-Use the [[file:misc/i2c_scanner/i2c_scanner.ino][ic2_scanner.ino]] to get the addresses. If they are the default values, only the acceleration min/max values have to be updated.
+The cable between the two boxes can be a cat5 network cable (low-ish capacitance).
+- one pair ground, one pair +5V, and SDA+GND and SCL+GND pairs.
 
 In the =combined= directory run
 #+begin_src sh
 make upload
-make monitor
+# open the serial console
+tio -b 9600 /dev/ttyUSB0
 #+end_src
+
+The assembled system looks like
+#+CAPTION: Display and sensor.
+[[file:misc/img/tilt_display_sensor.jpg]]
+
+#+CAPTION: Backside of the LCD: 4-wire connection to I2C shield (PCF8574) for the 1602 LCD display
+[[file:misc/img/backside_lcd.jpg]]
+
+#+CAPTION: Backside of the sensor: 4-wire connection, dc-barrel for power, ADXL345 accelerometer, arduino micro pro and stripboard with 4.7㏀ pullups and connectors.
+[[file:misc/img/backside_sensor.jpg]]
+
+The rise time, which is due to the capacitance of the random 4m cable shown above and connections, is seen by putting an oscilloscope on the =SCL= line and =gnd=. The Rise time =tf = 1.64μs= is higher than the allowed 1000ns(1μs) for I2C standard mode, but still works well at 100Hz. See sec. [[*Resistor sizing]] for more info.
+#+CAPTION: SCL signal for the shown system, measured with an oscilloscope.
+[[file:misc/img/scl_oscilloscope.jpg]]
 
 * Why use a accelerometer
 
@@ -46,7 +71,7 @@ $$ \frac{A_\text{X,out}}{A_\text{Y,out}} = \frac{1g⋅\sin(θ)}{1g⋅\cos(θ)} =
 
 #+NAME: fig:2d_rotation
 #+CAPTION: Rotation for two axis tilt
-[[file:misc/two_axis_tilt.svg]]
+[[file:misc/img/two_axis_tilt.svg]]
 
 *** Sensitivity
 One benefit of using two axis for calculating the rotation is that the sensitivity, the change in output for some change in input, is roughly constant.
@@ -65,13 +90,13 @@ For example, designing for a maximum step size of 1°, a resolution of at least 
 #+NAME: fig:1d_incremental_sensitivity
 #+CAPTION: Incremental Inclination Sensitivity for 1° Step for a single axis.
 
-[[file:misc/1axis_sensitivity.svg]]
+[[file:misc/img/1axis_sensitivity.svg]]
 
 For dual axis measurements, with constant sensitivity, fig. [[fig:2d_incremental_sensitivity]] shows the minimum resolution for a desired inclination step size. For 1° resolution, a sensitivity of 17.45mg/LSB is needed.
 
 #+NAME: fig:2d_incremental_sensitivity
 #+CAPTION: Minimum Accelerometer Resolution for a Desired Angle of Inclination Resolution for dual axis.
-[[file:misc/2axis_sensitivity.svg]]
+[[file:misc/img/2axis_sensitivity.svg]]
 ** 3d
 The classical method of rectangular \( (x, y, z) \) to spherical (ρ, θ, φ) conversion can be used to relate the angle of tilt in the xy-plane, θ, and the angle of inclination from the gravity vector, φ, to the measured acceleration in each axis [[https://en.wikipedia.org/wiki/Spherical_coordinate_system#Cartesian_coordinates][as follows]]
 
@@ -92,7 +117,7 @@ $$ φ = \tan^{-1} \left( \frac{ \sqrt{A^{2}_{X} + A^{2}_{Y}} }{A_{Z}} \right) $$
 
 as seen below
 #+CAPTION: Angles in a spherical coordinate system
-[[file:misc/3d_independent_inclination.svg]]
+[[file:misc/img/3d_independent_inclination.svg]]
 
 Because the inverse tangent function and a ratio of accelerations is used, the benefits mentioned in the dual-axis example apply, namely that the effective incremental sensitivity is constant and that the angles can be accurately measured for all points around the unit sphere.
 
@@ -139,15 +164,6 @@ accel.setRange(3); // 0=>2g, 1=>4g. 2=>8g, 3=>16g
 #+end_src
 
 [[https://youtu.be/3KPzLbZTdrA][Here is deep dive into MEMS devices on youtube]].
-
-** connections
-
-| Arduino Uno | ADXL345 |
-|-------------+---------|
-| A4          | SDA     |
-| A5          | SCL     |
-| GND         | GND     |
-| 5V          | Vcc     |
 
 * Monitor the serial port
 ** Configure permissions for serial port
@@ -265,11 +281,10 @@ I2C is half-duplex communication where only a single controller or a target devi
 
 ** Registers
 
-
 The I2C/2-wire Serial interface(TWI) hardware in ATmega MCU uses registers TWBR, TWCR, TWSR, TWDR, TWAR, and TWAMR to configure the hardware and to transmit and receive data. See [[https://www.arnabkumardas.com/arduino-tutorial/i2c-register-description/][this link]] for a description of the registers.
 
 #+CAPTION: AVR I2C Register Configuration
-[[file:misc/atmega16_32_twi_module.webp]]
+[[file:misc/img/atmega16_32_twi_module.webp]]
 
 *** change timing / speed
 
@@ -338,17 +353,18 @@ void setup ()
 #+end_src
 
 ** Resistor sizing
-tl;dr
+*** tl;dr
 Use 4.7㏀ between =SDA=, =SCL= and =Vcc=. You can leave the internal pullups enabled. The pullups works in parallel, thus the effect of the internal pullups is to reduce the 4.7㏀ slightly, which should not be a problem.
 
 
+*** info
 I2C is a open drain bus and requires pullups between =SDA=, =SCL= and =Vcc=.
 
 #+CAPTION: Open-Drain Connection Pulls Line Low When NMOS is Turned On
-[[file:misc/open_drain_pull_low.png]]
+[[file:misc/img/open_drain_pull_low.png]]
 
 #+CAPTION: Pullup Resistor Pulls Line High When NMOS is Turned Off
-[[file:misc/open_drain_pullup_high.png]]
+[[file:misc/img/open_drain_pullup_high.png]]
 
 
 The normal pullup resistor recommendation is 1 kΩ to 10 kΩ. With higher resistances, the I2C communication is slower. With lower resistances, the I2C communication requires more power. Based on the several different parameters, a minimum and maximum resistance can be calculated for the I2C bus speed.
@@ -372,25 +388,25 @@ For Standard mode, with tr=1ns and maximum allowed capacitance of Cb=400pF, the 
 For this reason the maximum recommended bus capacitance is dropped down to about 200pF with a 5 volt system
 
 
-
 Fig. [[fig:i2c_100kHz_pullups]] shows measurements of T_rise for different pullup resistors. As a general recommendation 4.7㏀ works well.
 
 #+NAME: fig:i2c_100kHz_pullups
 #+CAPTION: T_rise and the size of pullup resistor for 100kHz clock.
 #+CAPTION: 68k, 47k, 33k, 10k, 6.8k,4.7k, 3.3k, 2.2k and 1.5k resistor size
-[[attachment:Progression100kHz.jpg]]
+[[file:misc/img/Progression100kHz.jpg]]
 
-See [[https://web.archive.org/web/20150923044740/http://dsscircuits.com:80/articles/effects-of-varying-i2c-pull-up-resistors][link]] and [[http://www.gammon.com.au/i2c#reply5][link2]] for additional measurements.
+See [[https://web.archive.org/web/20150923044740/http://dsscircuits.com:80/articles/effects-of-varying-i2c-pull-up-resistors][link]](especially for 400kHz, where 4.7㏀ resistor is needed to reach that frequency) and [[http://www.gammon.com.au/i2c#reply5][link2]] for additional measurements.
 
 Power Rating: The power consumed in a resistor is \( V⋅I = V^2R \). For a 5.5V drop and 1k that's less than 31mW. So there should not be an issue for discrete components.
 
 As a final note, CAT5 can't have a higher capacitance than 52pf/m, or it isn't CAT5.
-* Assembling
+- one pair ground, one pair +5V, and SDA+GND and SCL+GND pairs.
 
 * Other resources
 [[https://www.best-microcontroller-projects.com/magnetometer-tilt-compensation.html][Using an accelerometer as tilt-compensation for a compass/magnetometer]]
 
 ** libraries
+https://github.com/RobTillaart/Arduino
 https://github.com/jrowberg/i2cdevlib
 
 LCD API

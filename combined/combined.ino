@@ -96,9 +96,10 @@ void orientation(sensors_vec_t vec, sensors_vec_t *val){
     // φ, phi: z-axis
 
 	// Because the inverse tangent function and a ratio of accelerations is
-	// used, the benefits mentioned in the dual-axis example apply, namely that
-	// the effective incremental sensitivity is constant and that the angles can
-	// be accurately measured for all points around the unit sphere. */
+	// used, the benefits of the dual-axis apply, namely that the effective
+	// incremental sensitivity is constant and that the angles can be accurately
+	// measured for all points around the unit sphere
+
     // val->pitch = (int) (180/M_PI) *
 	// 	atan2(vec.x, sqrt(vec.y*vec.y + vec.z*vec.z)) ;
     // val->roll = (int) (180/M_PI) *
@@ -107,9 +108,11 @@ void orientation(sensors_vec_t vec, sensors_vec_t *val){
 	// val->pitch  = abs(val->pitch);
 	// val->roll  = abs(val->roll);
 
-	///  XXX For this project I only care about rotation of a single plane and I
-	///  only care about tilt from horisontal
-	val->roll = abs((int)(180 / M_PI) * (M_PI/2 - atan(-vec.x / vec.y)));
+	//  XXX For this project I only care about rotation of a single plane and I
+	//  only care about tilt from vertical, ie the interval [0, π/2]
+	float theta =  abs( atan(vec.x / vec.y) );
+	theta = min(theta, M_PI  - theta );
+	val->roll = (int)(180 / M_PI) * theta;
 }
 
 void print_acceleration(sensors_vec_t vec){
