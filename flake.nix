@@ -7,7 +7,7 @@
     let
       supportedSystems =
         [ "x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin" ];
-			# Helper to provide system-specific attributes
+      # Helper to provide system-specific attributes
       forEachSupportedSystem = f:
         nixpkgs.lib.genAttrs supportedSystems
         (system: f { pkgs = import nixpkgs { inherit system; }; });
@@ -25,6 +25,7 @@
               (python3.withPackages (ps: with ps; [ pyserial ]))
               arduino-core-unwrapped
               arduino-mk
+              bear
               # use tio instead of screen, tio -b 9600 /dev/ttyUSB0
               tio
               # keep screen for make monitor
@@ -43,7 +44,8 @@
 
             # Add any shell logic you want executed any time the environment is activated
             shellHook = ''
-						'';
+              echo "run 'bear -- make' to generate compile_commands.json used by LSP. Remember to run 'make clean' first"
+            '';
           };
       });
     };

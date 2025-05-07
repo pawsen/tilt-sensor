@@ -1,2 +1,3 @@
 .direnv/
 build-*/
+/combined/compile_commands.json
