@@ -403,7 +403,8 @@ As a final note, CAT5 can't have a higher capacitance than 52pf/m, or it isn't C
 - one pair ground, one pair +5V, and SDA+GND and SCL+GND pairs.
 
 * Other resources
-[[https://www.best-microcontroller-projects.com/magnetometer-tilt-compensation.html][Using an accelerometer as tilt-compensation for a compass/magnetometer]]
+- [[https://www.best-microcontroller-projects.com/magnetometer-tilt-compensation.html][Using an accelerometer as tilt-compensation for a compass/magnetometer]]
+- [[https://github.com/alex-hhh/Arduino_Inclinometer][Arduino based inclinomte]] ::  a device that displays roll and pitch inside a vehicle.
 
 ** libraries
 https://github.com/RobTillaart/Arduino
